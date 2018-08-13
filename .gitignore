@@ -4,3 +4,5 @@ py3
 *.sublime-*
 res
 *__pycache__**
+
+data/

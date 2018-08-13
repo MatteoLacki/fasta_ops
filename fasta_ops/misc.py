@@ -1,7 +1,10 @@
 import re
+from multiprocessing import Pool
+from itertools      import product
 
 from fasta_ops.dump_2_csv import write2csv
 from fasta_ops.fasta_ops  import iter_proteins
+
 
 def iter_findings(seq, pattern, left_offset=10, right_offset=10):
     """Iterate over findings.
@@ -19,7 +22,8 @@ def iter_findings(seq, pattern, left_offset=10, right_offset=10):
         yield (seq[s:e],
                s + 1,
                seq[max(s-left_offset, 0):s],
-               seq[s:min(s+10, len(seq))])
+               seq[s:min(s+10, len(seq))],
+               seq)
 
 def iter_findings_across_sequences(filepath,
                                    searched_sequences,
@@ -33,14 +37,16 @@ def iter_findings_across_sequences(filepath,
                                right_offset = right_offset):
             yield f
 
-filepath = "data/human_reviewed.fasta"
-searched_sequences = ['R', 'AA', 'RA']
 
-# writing down to a csv.
-write2csv("res/human_hahaha.csv", 
-          ['sequence',
-           'index',
-           'Ten AAs before the sequence',
-           'Ten AAs after, including the beginning of the sequence.'],
-          iter_findings_across_sequences(filepath, searched_sequences))
-
+def iter_solutions(proteins, peptides, verbose = False, iter_ring = 1000):
+    K = len(proteins) * len(peptides)
+    i = 0
+    for prot, pep in product(proteins, peptides):
+        for f in iter_findings(str(prot.seq), re.compile(pep)):
+            yield f
+        if verbose:
+            div, mod = divmod(i, iter_ring)
+            if mod == 0:
+                www = (i, K, 100*(i/K))
+                print("Got {} out of {} = {:.2f}%.".format(*www))
+        i += 1
