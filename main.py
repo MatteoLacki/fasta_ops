@@ -8,7 +8,7 @@ from fasta_ops.misc import iter_findings,\
                            iter_findings_across_sequences,\
                            iter_solutions
 from fasta_ops.dump_2_csv import write2csv
-
+from fasta_ops.array_ops  import percentile_pairs_of_N_integers
 
 # filepath = "data/mus_musculus.fasta"
 # searched_sequences = [line.rstrip('\n') for line in open('data/peptides.txt')]
@@ -26,18 +26,17 @@ from fasta_ops.dump_2_csv import write2csv
 
 filepath  = "data/mus_musculus.fasta"
 seq_files = [p for p in os.listdir('data') if '.seq' in p]
-searched  = [[line.rstrip('\n') for line in open(join('data', f))] for f in seq_files]
+searched  = [[line.rstrip('\n') for line in open(join('data', f)) if line[0] != '>'] for f in seq_files]
 peptides  = [[s for s in ss if len(s) > 0] for ss in searched]
 proteins  = list(iter_proteins(filepath))
 
-
-def foo(proteins, peptides, left_offset=10, right_offset=10,
-        verbose = False):
-    peptides = "|".join(peptides)
-    RE = re.compile(peptides)
-    N  = len(proteins)
-    for k, p in enumerate(proteins):
-        seq = str(prot.seq)
+def foo(searched_against, searched_for,
+        left_offset=10, right_offset=10, verbose = False):
+    searched_for = "|".join(searched_for)
+    RE = re.compile(searched_for)
+    N  = len(searched_against)
+    for k, p in enumerate(searched_against):
+        seq = str(p.seq)
         for f in RE.finditer(seq):
             s = f.start()
             e = f.end()
@@ -49,14 +48,24 @@ def foo(proteins, peptides, left_offset=10, right_offset=10,
             if mod == 0:
                 print(f"{k}/{N}")
 
-# divide the proteins 
-res = [list(foo(proteins, p, verbose=True)) for p in peptides]
+def foo_split(searched_against, searched_for, K):
+    N = len(searched_for)
+    for s, e in percentile_pairs_of_N_integers(N, K):
+        yield searched_against, searched_for[s:e]
 
+def get_res(proteins, peptides, K=20, verbose=True):
+    res = []
+    for pep_no, p in enumerate(peptides):
+        p_res = []
+        for i, (sa, sf) in enumerate(foo_split(proteins, p, K)):
+            for r in foo(sa, sf, verbose=verbose):
+                p_res.append(r)
+            if verbose:
+                print(f"{i}/{K} for peptide {pep_no}/{len(peptides)}")
+        res.append(p_res)
+    return res
 
-# res0 = list(foo(proteins, peptides[0], verbose=True))
-# res1 = list(foo(proteins, peptides[1], verbose=True))
-# res2 = list(foo(proteins, peptides[2], verbose=True))
-
+res2 = get_res(proteins, peptides, K=20, verbose=True)
 
 colnames = ['seq',
             'index',
